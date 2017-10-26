@@ -2,7 +2,7 @@
 //  AMCDrive.h
 //  AMCDrive
 //
-//  Created by Rodolphe Pineau on 6/11/2016.
+//  Created by Rodolphe Pineau on 10/23/2017.
 //  AMCDrive X2 plugin
 
 #ifndef __AMCDrive__
@@ -88,15 +88,18 @@ extern "C"
 #define POS_O  0x00
 #define POS_L  0x02
 
+// clear error
+#define CLEAR_ERR 0x1000
+
 // Home
 #define HOME_I 0x01
-#define HOME_O 0x01
+#define HOME_O 0x00
 #define HOME_L 0x01
 #define HOME_D 0x0020
 
 // Stop
 #define STOP_I 0x01
-#define STOP_O 0x01
+#define STOP_O 0x00
 #define STOP_L 0x01
 #define STOP_D 0x0040
 
@@ -112,9 +115,9 @@ extern "C"
 #define STATUS_2_O 0x04
 #define STATUS_3_O 0x05
 #define STATUS_L 0x01
-#define STATUS_HOMING   0x1000
-#define STATUS_AT_HOME  0x4040 // homing complete | in home position
-#define STATUS_MOVING   0x0001
+#define HOMING   0x1000
+#define HOMING_COMPLETE  0x4000
+#define MOVING   0x0001
 
 // error codes
 // Error code
