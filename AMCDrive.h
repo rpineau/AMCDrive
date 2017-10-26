@@ -35,6 +35,8 @@
 #include "../../licensedinterfaces/sleeperinterface.h"
 #include "../../licensedinterfaces/loggerinterface.h"
 
+#include "StopWatch.h"
+
 // CRC16 stuff
 extern "C"
 {
@@ -121,8 +123,9 @@ extern "C"
 
 // error codes
 // Error code
-enum AMCDriveErrors {OK=0, NOT_CONNECTED, CANT_CONNECT, BAD_CMD_RESPONSE, COMMAND_FAILED};
-enum AMCDriveShutterState {OPEN=1, OPENING, CLOSED, CLOSING, SHUTTER_ERROR};
+enum AMCDriveErrors {OK = 0, NOT_CONNECTED, CANT_CONNECT, BAD_CMD_RESPONSE, COMMAND_FAILED};
+enum AMCDriveShutterState {OPEN = 1, OPENING, CLOSED, CLOSING, SHUTTER_ERROR};
+enum AMCDriveCmd {NONE = 0, GOTO, HOME, STOP};
 
 class CAMCDrive
 {
@@ -239,7 +242,7 @@ protected:
     FILE *Logfile;	  // LogFile
 #endif
     void            hexdump(const unsigned char* pszInputBuffer, unsigned char *pszOutputBuffer, int nInputBufferSize, int nOutpuBufferSize);
-    
+    CStopWatch      timer;
 };
 
 #endif

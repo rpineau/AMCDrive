@@ -431,6 +431,11 @@ bool CAMCDrive::isDomeMoving()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+    if(timer.GetElapsedSeconds()<2) {
+            // we're checking for movement to quickly, assume it's moving for now
+            return true;
+    }
+
     cmdBuf[0] = SOF;
     cmdBuf[1] = DA;
     cmdBuf[2] = CB_READ;
@@ -801,6 +806,8 @@ int CAMCDrive::gotoTicksPosition(int ticks)
     if(nErr)
         printf("nErr = %d\n", nErr);
 
+    timer.Reset();
+
     return nErr;
 }
 
@@ -979,6 +986,7 @@ int CAMCDrive::goHome()
 
     nErr = domeCommand(cmdBuf, 8 + HOME_L*2 + 2, szResp, SERIAL_BUFFER_SIZE);
 
+    timer.Reset();
     return nErr;
 }
 

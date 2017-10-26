@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		930E659B1FA1B1E3008F5CD8 /* StopWatch.h in Headers */ = {isa = PBXBuildFile; fileRef = 930E659A1FA1B1E3008F5CD8 /* StopWatch.h */; };
 		938EAFDA1D0C84F700ED2086 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 938EAFD61D0C84F700ED2086 /* main.cpp */; };
 		938EAFDB1D0C84F700ED2086 /* main.h in Headers */ = {isa = PBXBuildFile; fileRef = 938EAFD71D0C84F700ED2086 /* main.h */; };
 		938EAFDC1D0C84F700ED2086 /* x2dome.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 938EAFD81D0C84F700ED2086 /* x2dome.cpp */; };
@@ -20,6 +21,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		930E659A1FA1B1E3008F5CD8 /* StopWatch.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = StopWatch.h; sourceTree = "<group>"; };
 		938EAFCD1D0C83E900ED2086 /* libAMCDrive.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libAMCDrive.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		938EAFD61D0C84F700ED2086 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		938EAFD71D0C84F700ED2086 /* main.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = main.h; sourceTree = "<group>"; };
@@ -75,6 +77,7 @@
 		938EAFD51D0C84E900ED2086 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				930E659A1FA1B1E3008F5CD8 /* StopWatch.h */,
 				93D6BA671F9EB2EE00A91278 /* checksum.h */,
 				93D6BA661F9EB2EE00A91278 /* crcccitt.c */,
 				938EAFDE1D0C858700ED2086 /* AMCDrive.cpp */,
@@ -96,6 +99,7 @@
 			files = (
 				938EAFE11D0C858700ED2086 /* AMCDrive.h in Headers */,
 				938EAFDB1D0C84F700ED2086 /* main.h in Headers */,
+				930E659B1FA1B1E3008F5CD8 /* StopWatch.h in Headers */,
 				938EAFDD1D0C84F700ED2086 /* x2dome.h in Headers */,
 				93D6BA691F9EB2EE00A91278 /* checksum.h in Headers */,
 			);
