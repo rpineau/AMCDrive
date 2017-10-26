@@ -147,6 +147,7 @@
     <ClInclude Include="..\checksum.h" />
     <ClInclude Include="..\main.h" />
     <ClInclude Include="..\AMCDrive.h" />
+    <ClInclude Include="..\StopWatch.h" />
     <ClInclude Include="..\x2dome.h" />
   </ItemGroup>
   <ItemGroup>

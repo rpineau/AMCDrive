@@ -433,6 +433,7 @@ bool CAMCDrive::isDomeMoving()
 
     if(timer.GetElapsedSeconds()<2) {
             // we're checking for movement to quickly, assume it's moving for now
+            // this also help at the end of a goto when it slowly get to the actual position
             return true;
     }
 
@@ -1214,6 +1215,7 @@ int CAMCDrive::isFindHomeComplete(bool &bComplete)
         // sometimes we pass the home sensor so give it another try
         if(m_nHomingTries == 0 ) {
             m_nHomingTries = 1; // dome might still be homing or hasn't statrted to home yet.
+            timer.Reset();
         }
         else {
             m_nHomingTries = 0;

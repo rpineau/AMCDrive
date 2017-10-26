@@ -27,6 +27,9 @@
     <ClInclude Include="..\checksum.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\StopWatch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\main.cpp">
