@@ -422,10 +422,6 @@ void CAMCDrive::setDebugLog(bool bEnable)
 bool CAMCDrive::isDomeMoving()
 {
     bool bIsMoving = false;
-    int nErr = 0;
-    uint16_t nCRC;
-    unsigned char cmdBuf[SERIAL_BUFFER_SIZE];
-    unsigned char szResp[SERIAL_BUFFER_SIZE];
     uint16_t nStatus;
 
     if(!m_bIsConnected)
@@ -437,32 +433,8 @@ bool CAMCDrive::isDomeMoving()
             return true;
     }
 
-    cmdBuf[0] = SOF;
-    cmdBuf[1] = DA;
-    cmdBuf[2] = CB_READ;
-    cmdBuf[3] = STATUS_I;
-    cmdBuf[4] = STATUS_2_O;
-    cmdBuf[5] = STATUS_L;
+    nStatus = getStatus();
 
-    nCRC = crc_xmodem(cmdBuf, 6);
-    cmdBuf[6] = (unsigned char) ((nCRC>> 8) & 0xff);
-    cmdBuf[7] = (unsigned char) (nCRC & 0xff);
-
-#ifdef LOG_DEBUG
-    unsigned char cHexBuf[LOG_BUFFER_SIZE];
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    hexdump(cmdBuf, cHexBuf, 8 , LOG_BUFFER_SIZE);
-    fprintf(Logfile, "[%s] CAMCDrive::isDomeMoving sending : %s\n", timestamp, cHexBuf);
-    fflush(Logfile);
-#endif
-
-    nErr = domeCommand(cmdBuf, 8, szResp, SERIAL_BUFFER_SIZE);
-    if(nErr)
-        return false;
-
-    memcpy(&nStatus, szResp+8, 2);
 #ifdef LOG_DEBUG
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
@@ -477,19 +449,19 @@ bool CAMCDrive::isDomeMoving()
         ltime = time(NULL);
         timestamp = asctime(localtime(&ltime));
         timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] CAMCDrive::isDomeMoving Dome is moving\n\n", timestamp);
+        fprintf(Logfile, "[%s] CAMCDrive::isDomeMoving Dome is moving\n", timestamp);
         fflush(Logfile);
 #endif
     }
-    else if( (nStatus & MOVING) != 0 &&
-             (nStatus & HOMING) == HOMING &&
-             (nStatus & HOMING_COMPLETE) != HOMING_COMPLETE) { // homing has started but we haven't moved yet
+    else if( (nStatus & MOVING) != 0 &&                         // not moving
+             (nStatus & HOMING) == HOMING &&                    // homing
+             (nStatus & HOMING_COMPLETE) != HOMING_COMPLETE) {  // homing has started but we haven't moved yet
         bIsMoving = true;
 #ifdef LOG_DEBUG
         ltime = time(NULL);
         timestamp = asctime(localtime(&ltime));
         timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] CAMCDrive::isDomeMoving Dome is homing but not moving yet... assumed moving\n", timestamp);
+        fprintf(Logfile, "[%s] CAMCDrive::isDomeMoving Dome is homing but not moving yet... assuming we're moving\n", timestamp);
         fflush(Logfile);
 #endif
     } else {
@@ -502,41 +474,13 @@ bool CAMCDrive::isDomeMoving()
 bool CAMCDrive::isDomeAtHome()
 {
     bool bAthome = false;
-    int nErr = 0;
-    uint16_t nCRC;
-    unsigned char cmdBuf[SERIAL_BUFFER_SIZE];
-    unsigned char szResp[SERIAL_BUFFER_SIZE];
     uint16_t nStatus;
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    cmdBuf[0] = SOF;
-    cmdBuf[1] = DA;
-    cmdBuf[2] = CB_READ;
-    cmdBuf[3] = STATUS_I;
-    cmdBuf[4] = STATUS_2_O;
-    cmdBuf[5] = STATUS_L;
+    nStatus = getStatus();
 
-    nCRC = crc_xmodem(cmdBuf, 6);
-    cmdBuf[6] = (unsigned char) ((nCRC>> 8) & 0xff);
-    cmdBuf[7] = (unsigned char) (nCRC & 0xff);
-
-#ifdef LOG_DEBUG
-    unsigned char cHexBuf[LOG_BUFFER_SIZE];
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    hexdump(cmdBuf, cHexBuf, 8 , LOG_BUFFER_SIZE);
-    fprintf(Logfile, "[%s] CAMCDrive::isDomeAtHome sending : %s\n", timestamp, cHexBuf);
-    fflush(Logfile);
-#endif
-
-    nErr = domeCommand(cmdBuf, 8, szResp, SERIAL_BUFFER_SIZE);
-    if(nErr)
-        return false;
-
-    memcpy(&nStatus, szResp+8, 2);
 #ifdef LOG_DEBUG
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
@@ -548,7 +492,7 @@ bool CAMCDrive::isDomeAtHome()
     if( (nStatus & HOMING) == HOMING && (nStatus & HOMING_COMPLETE) != HOMING_COMPLETE)
         bAthome = false;
 
-    if((nStatus & HOMING_COMPLETE) == HOMING_COMPLETE)
+    else if((nStatus & HOMING_COMPLETE) == HOMING_COMPLETE)
         bAthome = true;
 
     return bAthome;
@@ -1017,6 +961,12 @@ int CAMCDrive::isGoToComplete(bool &bComplete)
         return nErr;
     }
 
+    if(!isPositionReached()) {
+        bComplete = false;
+        getDomeAz(dDomeAz);
+        return nErr;
+    }
+
     getDomeAz(dDomeAz);
     if(dDomeAz >0 && dDomeAz<1)
         dDomeAz = 0;
@@ -1299,6 +1249,63 @@ void CAMCDrive::TicksToAz(int ticks, double &pdAz)
 }
 
 
+bool CAMCDrive::isPositionReached()
+{
+    uint16_t nStatus;
+    bool bReached = false;
+
+    nStatus = getStatus();
+
+    if((nStatus & POS_REACHED) == POS_REACHED)
+        bReached = true;
+
+    return bReached;
+}
+
+uint16_t CAMCDrive::getStatus()
+{
+    int nErr = OK;
+    unsigned char cmdBuf[SERIAL_BUFFER_SIZE];
+    unsigned char szResp[SERIAL_BUFFER_SIZE];
+    uint16_t nCRC;
+    uint16_t nStatus;
+
+    cmdBuf[0] = SOF;
+    cmdBuf[1] = DA;
+    cmdBuf[2] = CB_READ;
+    cmdBuf[3] = STATUS_I;
+    cmdBuf[4] = STATUS_2_O;
+    cmdBuf[5] = STATUS_L;
+
+    nCRC = crc_xmodem(cmdBuf, 6);
+    cmdBuf[6] = (unsigned char) ((nCRC>> 8) & 0xff);
+    cmdBuf[7] = (unsigned char) (nCRC & 0xff);
+
+#ifdef LOG_DEBUG
+    unsigned char cHexBuf[LOG_BUFFER_SIZE];
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    hexdump(cmdBuf, cHexBuf, 8 , LOG_BUFFER_SIZE);
+    fprintf(Logfile, "[%s] CAMCDrive::getStatus sending : %s\n", timestamp, cHexBuf);
+    fflush(Logfile);
+#endif
+
+    nErr = domeCommand(cmdBuf, 8, szResp, SERIAL_BUFFER_SIZE);
+    if(nErr)
+        return false;
+
+    memcpy(&nStatus, szResp+8, 2);
+#ifdef LOG_DEBUG
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] CAMCDrive::getStatus nStatus : %04x\n", timestamp, nStatus);
+    fflush(Logfile);
+#endif
+
+    return nStatus;
+}
 #pragma mark - Getter / Setter
 
 int CAMCDrive::getNbTicksPerRev()

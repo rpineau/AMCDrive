@@ -120,6 +120,7 @@ extern "C"
 #define HOMING   0x1000
 #define HOMING_COMPLETE  0x4000
 #define MOVING   0x0001
+#define POS_REACHED 0x0002
 
 // error codes
 // Error code
@@ -204,6 +205,8 @@ protected:
     int             domeCommand(const unsigned char *cmd, int nCmdSize, unsigned char *result, int resultMaxLen);
     int             readResponse(unsigned char *respBuffer, int bufferLen);
     int             parseFields(char *pszResp, std::vector<std::string> &svFields, char cSeparator);
+    bool            isPositionReached();
+    uint16_t        getStatus();
 
     void            AzToTicks(double pdAz, int &ticks);
     void            TicksToAz(int ticks, double &pdAz);
