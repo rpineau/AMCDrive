@@ -126,8 +126,6 @@ int X2Dome::execModalSettingsDialog()
     double dParkAz;
     int nTicksPerRev;
 
-    float fFrimwareVersion;
-
     if (NULL == ui)
         return ERR_POINTER;
 
@@ -149,7 +147,6 @@ int X2Dome::execModalSettingsDialog()
     }
 
     if(m_bLinked) {
-        nErr = m_AMCDrive.getFirmwareVersion(fFrimwareVersion);
         dx->setEnabled("pushButton",false); // calibrate  off for now
     }
     else {
@@ -297,7 +294,6 @@ void X2Dome::deviceInfoDetailedDescription(BasicStringInterface& str) const
         char cFirmware[SERIAL_BUFFER_SIZE];
         m_AMCDrive.getFirmwareVersion(cFirmware, SERIAL_BUFFER_SIZE);
         str = cFirmware;
-
     }
     else
         str = "N/A";

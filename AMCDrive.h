@@ -90,6 +90,11 @@ extern "C"
 #define POS_O  0x00
 #define POS_L  0x02
 
+// get firmware
+#define FW_I  0x8d
+#define FW_O  0x00
+#define FW_L  0x00
+
 // clear error
 #define CLEAR_ERR 0x1000
 
@@ -112,14 +117,15 @@ extern "C"
 #define SYNC_D 0x0008
 
 // Drive status
-#define STATUS_I 0x02
-#define STATUS_1_O 0x03
-#define STATUS_2_O 0x04
-#define STATUS_3_O 0x05
-#define STATUS_L 0x01
-#define HOMING   0x1000
+#define STATUS_I    0x02
+#define STATUS_1_O  0x03
+#define STATUS_2_O  0x04
+#define STATUS_3_O  0x05
+#define STATUS_L    0x01
+
+#define HOMING      0x1000
 #define HOMING_COMPLETE  0x4000
-#define MOVING   0x0001
+#define MOVING      0x0001
 #define POS_REACHED 0x0002
 
 // error codes
@@ -150,7 +156,6 @@ public:
     int openShutter();
     int closeShutter();
     int getFirmwareVersion(char *szVersion, int nStrMaxLen);
-    int getFirmwareVersion(float &fVersion);
     int goHome();
     int calibrate();
 

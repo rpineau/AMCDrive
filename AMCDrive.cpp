@@ -808,32 +808,53 @@ int CAMCDrive::closeShutter()
 int CAMCDrive::getFirmwareVersion(char *szVersion, int nStrMaxLen)
 {
     int nErr = 0;
+    uint16_t nCRC;
+    unsigned char cmdBuf[SERIAL_BUFFER_SIZE];
     unsigned char szResp[SERIAL_BUFFER_SIZE];
-    std::vector<std::string> firmwareFields;
+    size_t nMaxSize;
 
-    if(!m_bIsConnected)
-        return NOT_CONNECTED;
+    cmdBuf[0] = SOF;
+    cmdBuf[1] = DA;
+    cmdBuf[2] = CB_READ;
+    cmdBuf[3] = FW_I;
+    cmdBuf[4] = FW_O;
+    cmdBuf[5] = FW_L;
 
-    if(m_bCalibrating)
-        return SB_OK;
+    nCRC = crc_xmodem(cmdBuf, 6);
+    cmdBuf[6] = (unsigned char) ((nCRC>> 8) & 0xff);
+    cmdBuf[7] = (unsigned char) (nCRC & 0xff);
 
-    // FIXME
-    snprintf(szVersion, nStrMaxLen, "1.0" );
+#ifdef LOG_DEBUG
+    unsigned char cHexBuf[LOG_BUFFER_SIZE];
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    hexdump(cmdBuf, cHexBuf, 8, LOG_BUFFER_SIZE);
+    fprintf(Logfile, "[%s] CAMCDrive::getFirmwareVersion sending : %s\n", timestamp, cHexBuf);
+    fflush(Logfile);
+#endif
+    // send command and get response.
+    nErr = domeCommand(cmdBuf, 8, szResp, SERIAL_BUFFER_SIZE);
+    if(nErr)
+        return nErr;
 
-    return nErr;
-}
+    // convert response, firmware is a 32 byte max resonse
+    memset(szVersion, 0, nStrMaxLen);
+    if(nStrMaxLen< 32)
+        nMaxSize = nStrMaxLen;
+    else
+        nMaxSize = 32;
 
-int CAMCDrive::getFirmwareVersion(float &fVersion)
-{
-    int nErr = OK;
+    strncpy(szVersion, (const char *)szResp, nMaxSize);
 
-    if(m_fVersion == 0.0) {
-        nErr = getFirmwareVersion(m_szFirmwareVersion, SERIAL_BUFFER_SIZE);
-        if(nErr)
-            return nErr;
-    }
-
-    fVersion = m_fVersion;
+#ifdef LOG_DEBUG
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    hexdump(cmdBuf, cHexBuf, 8, LOG_BUFFER_SIZE);
+    fprintf(Logfile, "[%s] CAMCDrive::getFirmwareVersion got :%s\n", timestamp, szVersion);
+    fflush(Logfile);
+#endif
 
     return nErr;
 }
@@ -915,7 +936,7 @@ int CAMCDrive::goHome()
     data[0] = regValue;
     memcpy(cmdBuf + 8, data, HOME_L*2);
 
-    nCRC = crc_xmodem((const unsigned char *)data, BRIDGE_L * 2);
+    nCRC = crc_xmodem((const unsigned char *)data, HOME_L * 2);
 
     cmdBuf[8+(HOME_L*2)] = (unsigned char) ((nCRC>> 8) & 0xff);
     cmdBuf[8+(HOME_L*2)+1] = (unsigned char) (nCRC & 0xff);
@@ -1136,8 +1157,9 @@ int CAMCDrive::isFindHomeComplete(bool &bComplete)
     if(isDomeAtHome()){
         m_bHomed = true;
         bComplete = true;
-        syncDome(m_dHomeAz, m_dCurrentElPosition);
+        // syncDome(m_dHomeAz, m_dCurrentElPosition);
         m_nHomingTries = 0;
+        enableBridge(); // let's see if this helps.
 #ifdef LOG_DEBUG
         ltime = time(NULL);
         timestamp = asctime(localtime(&ltime));
@@ -1214,13 +1236,89 @@ int CAMCDrive::isCalibratingComplete(bool &bComplete)
 int CAMCDrive::abortCurrentCommand()
 {
     int nErr = 0;
+    uint16_t nCRC;
+    unsigned char cmdBuf[SERIAL_BUFFER_SIZE];
+    unsigned char szResp[SERIAL_BUFFER_SIZE];
+    uint16_t data[HOME_L];
+    uint16_t regValue;
+
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    // 0xC9
-    
-    m_bCalibrating = false;
+#ifdef LOG_DEBUG
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] CAMCDrive::abortCurrentCommand \n", timestamp);
+    fflush(Logfile);
+#endif
 
+    // read register
+    cmdBuf[0] = SOF;
+    cmdBuf[1] = DA;
+    cmdBuf[2] = CB_READ;
+    cmdBuf[3] = STOP_I;
+    cmdBuf[4] = STOP_O;
+    cmdBuf[5] = STOP_L;
+    nCRC = crc_xmodem(cmdBuf, 6);
+    cmdBuf[6] = (unsigned char) ((nCRC>> 8) & 0xff);
+    cmdBuf[7] = (unsigned char) (nCRC & 0xff);
+#ifdef LOG_DEBUG
+    unsigned char cHexBuf[LOG_BUFFER_SIZE];
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    hexdump(cmdBuf, cHexBuf, 8+STOP_L*2 + 2 , LOG_BUFFER_SIZE);
+    fprintf(Logfile, "[%s] CAMCDrive::abortCurrentCommand sending to read register : %s\n", timestamp, cHexBuf);
+    fflush(Logfile);
+#endif
+
+    nErr = domeCommand(cmdBuf, 8, szResp, SERIAL_BUFFER_SIZE);
+    memcpy(&regValue, szResp+8, 2);
+
+#ifdef LOG_DEBUG
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] CAMCDrive::goHome regValue : %04X\n", timestamp, regValue);
+    fflush(Logfile);
+#endif
+
+    // set STOP bit
+    regValue |= STOP_D;
+
+    // write register
+    cmdBuf[0] = SOF;
+    cmdBuf[1] = DA;
+    cmdBuf[2] = CB_WRITE;
+    cmdBuf[3] = STOP_I;
+    cmdBuf[4] = STOP_O;
+    cmdBuf[5] = STOP_L;
+
+    nCRC = crc_xmodem(cmdBuf, 6);
+    cmdBuf[6] = (unsigned char) ((nCRC>> 8) & 0xff);
+    cmdBuf[7] = (unsigned char) (nCRC & 0xff);
+
+    data[0] = regValue;
+    memcpy(cmdBuf + 8, data, STOP_L*2);
+
+    nCRC = crc_xmodem((const unsigned char *)data, STOP_L * 2);
+
+    cmdBuf[8+(STOP_L*2)] = (unsigned char) ((nCRC>> 8) & 0xff);
+    cmdBuf[8+(STOP_L*2)+1] = (unsigned char) (nCRC & 0xff);
+
+#ifdef LOG_DEBUG
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    hexdump(cmdBuf, cHexBuf, 8+STOP_L*2 + 2 , LOG_BUFFER_SIZE);
+    fprintf(Logfile, "[%s] CAMCDrive::abortCurrentCommand sending : %s\n", timestamp, cHexBuf);
+    fflush(Logfile);
+#endif
+
+    nErr = domeCommand(cmdBuf, 8 + STOP_L*2 + 2, szResp, SERIAL_BUFFER_SIZE);
+
+    timer.Reset();
     return nErr;
 }
 
