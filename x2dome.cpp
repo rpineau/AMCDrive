@@ -45,6 +45,9 @@ X2Dome::X2Dome(const char* pszSelection,
 
 X2Dome::~X2Dome()
 {
+    if(m_bLinked)
+        m_AMCDrive.Disconnect();
+    
 	if (m_pSerX)
 		delete m_pSerX;
 	if (m_pTheSkyXForMounts)
@@ -178,6 +181,7 @@ int X2Dome::execModalSettingsDialog()
         m_bHasShutterControl = dx->isChecked("hasShutterCtrl");
         m_AMCDrive.setHomeAz(dHomeAz);
         m_AMCDrive.setParkAz(dParkAz);
+        m_AMCDrive.setNbTicksPerRev(nTicksPerRev);
 
         // save the values to persistent storage
         nErr |= m_pIniUtil->writeDouble(PARENT_KEY, CHILD_KEY_HOME_AZ, dHomeAz);

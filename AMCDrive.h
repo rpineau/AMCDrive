@@ -71,6 +71,7 @@ extern "C"
 #define WR_ACCESS_L 0x01
 #define WR_ACCESS_D 0x000F
 
+// Section 2.3.1 page 142 01h: Control Parameters
 // bridge access
 #define BRIDGE_I 0x01
 #define BRIDGE_O 0x00
@@ -98,6 +99,7 @@ extern "C"
 // clear error
 #define CLEAR_ERR 0x1000
 
+// Section 2.3.1 page 142 01h: Control Parameters
 // Home
 #define HOME_I 0x01
 #define HOME_O 0x00
@@ -109,13 +111,13 @@ extern "C"
 #define STOP_O 0x00
 #define STOP_L 0x01
 #define STOP_D 0x0040
-
 // Sync
 #define SYNC_I 0x01
 #define SYNC_O 0x01
 #define SYNC_L 0x01
 #define SYNC_D 0x0008
 
+// Section 2.3.3 Monitor Commands
 // Drive status
 #define STATUS_I    0x02
 #define STATUS_1_O  0x03
@@ -123,7 +125,9 @@ extern "C"
 #define STATUS_3_O  0x05
 #define STATUS_L    0x01
 
+// page 155, TABLE 2.12 Drive Status Bit-field Definitions
 #define HOMING      0x1000
+#define IN_HOME_POSITION  0x040
 #define HOMING_COMPLETE  0x4000
 #define MOVING      0x0001
 #define POS_REACHED 0x0002
@@ -216,10 +220,12 @@ protected:
     void            AzToTicks(double pdAz, int &ticks);
     void            TicksToAz(int ticks, double &pdAz);
     int             gotoTicksPosition(int ticks);
+    int             syncTicksPosition(int ticks);
 
     SerXInterface   *m_pSerx;
     SleeperInterface *m_pSleeper;
     LoggerInterface *m_pLogger;
+    
     bool            m_bDebugLog;
     
     bool            m_bIsConnected;
@@ -243,6 +249,9 @@ protected:
     char            m_szLogBuffer[LOG_BUFFER_SIZE];
     int             m_nHomingTries;
     int             m_nGotoTries;
+    uint32_t        m_nCurrentTicks;
+    bool            m_goto_find;
+    
 #ifdef LOG_DEBUG
     // timestamp for logs
     char *timestamp;

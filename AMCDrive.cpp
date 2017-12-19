@@ -32,6 +32,7 @@ CAMCDrive::CAMCDrive()
 
     m_nHomingTries = 0;
     m_nGotoTries = 0;
+    m_goto_find = true;
 
     memset(m_szFirmwareVersion,0,SERIAL_BUFFER_SIZE);
     memset(m_szLogBuffer,0,LOG_BUFFER_SIZE);
@@ -112,7 +113,7 @@ int CAMCDrive::Connect(const char *pszPort)
 #endif
 
     nErr = gainWriteAccess();
-
+    nErr = abortCurrentCommand();
     nErr = enableBridge();
 
     return SB_OK;
@@ -182,8 +183,8 @@ int CAMCDrive::readResponse(unsigned char *szRespBuffer, int nBufferLen)
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
     hexdump(szRespBuffer, cHexBuf, 8, LOG_BUFFER_SIZE);
-    fprintf(Logfile, "[%s] CAMCDrive::readResponse response header : %s\n", timestamp, cHexBuf);
-    fprintf(Logfile, "[%s] CAMCDrive::readResponse response header CRC : %04X\n", timestamp, nCRC);
+    // fprintf(Logfile, "[%s] CAMCDrive::readResponse response header : %s\n", timestamp, cHexBuf);
+    // fprintf(Logfile, "[%s] CAMCDrive::readResponse response header CRC : %04X\n", timestamp, nCRC);
     fflush(Logfile);
 #endif
 
@@ -239,8 +240,8 @@ int CAMCDrive::readResponse(unsigned char *szRespBuffer, int nBufferLen)
         timestamp = asctime(localtime(&ltime));
         timestamp[strlen(timestamp) - 1] = 0;
         hexdump(szRespBuffer + 8, cHexBuf, nDataLen, LOG_BUFFER_SIZE);
-        fprintf(Logfile, "[%s] CAMCDrive::readResponse response data : %s\n", timestamp, cHexBuf);
-        fprintf(Logfile, "[%s] CAMCDrive::readResponse response data CRC : %04X\n", timestamp, nCRC);
+        // fprintf(Logfile, "[%s] CAMCDrive::readResponse response data : %s\n", timestamp, cHexBuf);
+        // fprintf(Logfile, "[%s] CAMCDrive::readResponse response data CRC : %04X\n", timestamp, nCRC);
         fflush(Logfile);
 #endif
 
@@ -266,7 +267,7 @@ int CAMCDrive::domeCommand(const unsigned char *pszCmd, int nCmdSize, unsigned c
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
     hexdump(pszCmd , cHexBuf, nCmdSize, LOG_BUFFER_SIZE);
-    fprintf(Logfile, "[%s] CAMCDrive::domeCommand sending : %s\n", timestamp, cHexBuf);
+    // fprintf(Logfile, "[%s] CAMCDrive::domeCommand sending : %s\n", timestamp, cHexBuf);
     fflush(Logfile);
 #endif
 
@@ -305,10 +306,10 @@ int CAMCDrive::domeCommand(const unsigned char *pszCmd, int nCmdSize, unsigned c
         resp_len +=2;
     resp_len += 8; // header
     hexdump(szResp , cHexBuf, resp_len, LOG_BUFFER_SIZE);
-    fprintf(Logfile, "[%s] CAMCDrive::domeCommand response : %s\n", timestamp, cHexBuf);
-    fflush(Logfile);
-    fprintf(Logfile, "[%s] .................................\n", timestamp);
-    fflush(Logfile);
+    //fprintf(Logfile, "[%s] CAMCDrive::domeCommand response : %s\n", timestamp, cHexBuf);
+    //fflush(Logfile);
+    //fprintf(Logfile, "[%s] .................................\n", timestamp);
+    //fflush(Logfile);
 #endif
 
     if(pszResult)
@@ -365,6 +366,8 @@ int CAMCDrive::getDomeAz(double &dDomeAz)
 
     TicksToAz(nTicks, m_dCurrentAzPosition);
     dDomeAz = m_dCurrentAzPosition;
+    m_nCurrentTicks = nTicks;
+
 #ifdef LOG_DEBUG
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
@@ -489,10 +492,10 @@ bool CAMCDrive::isDomeAtHome()
     fflush(Logfile);
 #endif
 
-    if( (nStatus & HOMING) == HOMING && (nStatus & HOMING_COMPLETE) != HOMING_COMPLETE)
+    if( (nStatus & HOMING) == HOMING && (nStatus & IN_HOME_POSITION) != IN_HOME_POSITION)
         bAthome = false;
 
-    else if((nStatus & HOMING_COMPLETE) == HOMING_COMPLETE)
+    else if((nStatus & IN_HOME_POSITION) == IN_HOME_POSITION)
         bAthome = true;
 
     return bAthome;
@@ -665,10 +668,63 @@ int CAMCDrive::disableBridge()
 int CAMCDrive::syncDome(double dAz, double dEl)
 {
     int nErr = 0;
+    int nPosInTicks;
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+    enableBridge();
+
+    while(dAz >= 360)
+        dAz = dAz - 360;
+
+    AzToTicks(dAz, nPosInTicks);
+    nErr = syncTicksPosition(nPosInTicks);
+    // if(nErr)
+    //    return nErr;
+
+    return nErr;
+}
+
+int CAMCDrive::syncTicksPosition(int ticks)
+{
+    int nErr = 0;
+    uint16_t nCRC;
+    unsigned char cmdBuf[SERIAL_BUFFER_SIZE];
+    unsigned char szResp[SERIAL_BUFFER_SIZE];
+
+    cmdBuf[0] = SOF;
+    cmdBuf[1] = DA;
+    cmdBuf[2] = CB_WRITE;
+    cmdBuf[3] = SYNC_I;
+    cmdBuf[4] = SYNC_O;
+    cmdBuf[5] = SYNC_L;
+
+    nCRC = crc_xmodem(cmdBuf, 6);
+    cmdBuf[6] = (unsigned char) ((nCRC>> 8) & 0xff);
+    cmdBuf[7] = (unsigned char) (nCRC & 0xff);
+
+    memcpy(cmdBuf + 8, &ticks, SYNC_L*2);
+    nCRC = crc_xmodem((const unsigned char *)&ticks, SYNC_L * 2);
+
+    cmdBuf[8+(SYNC_L*2)] = (unsigned char) ((nCRC>> 8) & 0xff);
+    cmdBuf[8+(SYNC_L*2)+1] = (unsigned char) (nCRC & 0xff);
+
+#ifdef LOG_DEBUG
+    unsigned char cHexBuf[LOG_BUFFER_SIZE];
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    hexdump(cmdBuf, cHexBuf, 8+SYNC_L*2 + 2 , LOG_BUFFER_SIZE);
+    fprintf(Logfile, "[%s] CAMCDrive::gotoTicksPosition sending : %s\n", timestamp, cHexBuf);
+    fflush(Logfile);
+#endif
+
+    nErr = domeCommand(cmdBuf, 8 + SYNC_L*2 + 2, szResp, SERIAL_BUFFER_SIZE);
+    if(nErr)
+        printf("nErr = %d\n", nErr);
+
+    timer.Reset();
     return nErr;
 }
 
@@ -700,6 +756,7 @@ int CAMCDrive::gotoAzimuth(double dNewAz)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+    enableBridge();
 
     while(dNewAz >= 360)
         dNewAz = dNewAz - 360;
@@ -872,6 +929,9 @@ int CAMCDrive::goHome()
             m_bHomed = true;
             return OK;
     }
+
+    enableBridge();
+
 #ifdef LOG_DEBUG
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
@@ -953,6 +1013,7 @@ int CAMCDrive::goHome()
     nErr = domeCommand(cmdBuf, 8 + HOME_L*2 + 2, szResp, SERIAL_BUFFER_SIZE);
 
     timer.Reset();
+    m_goto_find = true;
     return nErr;
 }
 
@@ -962,6 +1023,7 @@ int CAMCDrive::calibrate()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
+    enableBridge();
 
     // m_bCalibrating = true;
     
@@ -1007,7 +1069,7 @@ int CAMCDrive::isGoToComplete(bool &bComplete)
 #endif
 
     // we need to test "large" depending on the heading error
-    if ((ceil(m_dGotoAz) <= ceil(dDomeAz)+3) && (ceil(m_dGotoAz) >= ceil(dDomeAz)-3)) {
+    if ((ceil(m_dGotoAz) <= ceil(dDomeAz)+1) && (ceil(m_dGotoAz) >= ceil(dDomeAz)-1)) {
         bComplete = true;
         m_nGotoTries = 0;
     }
@@ -1137,6 +1199,9 @@ int CAMCDrive::isUnparkComplete(bool &bComplete)
 int CAMCDrive::isFindHomeComplete(bool &bComplete)
 {
     int nErr = 0;
+    int nStatus = 0;
+    double dDomeAz;
+    bool bGotComplete;
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
@@ -1155,8 +1220,44 @@ int CAMCDrive::isFindHomeComplete(bool &bComplete)
     }
 
     if(isDomeAtHome()){
+        getDomeAz(dDomeAz);
+
+#ifdef LOG_DEBUG
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] CAMCDrive::dDomeAz = %3.2f\n", timestamp, dDomeAz);
+        fprintf(Logfile, "[%s] CAMCDrive::m_nCurrentTicks = %d\n", timestamp, m_nCurrentTicks);
+        fprintf(Logfile, "[%s] CAMCDrive::dDomeAz-((dDomeAz-m_dHomeAz)/2) = %3.2f\n", timestamp, dDomeAz-((dDomeAz-m_dHomeAz)/2));
+        fprintf(Logfile, "[%s] CAMCDrive::m_goto_find = %s\n", timestamp, m_goto_find?"true":"false");
+        fflush(Logfile);
+#endif
+
+        if (m_goto_find == true) {
+#ifdef LOG_DEBUG
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] CAMCDrive::need small goto to = %3.2f\n", timestamp, dDomeAz-((dDomeAz-m_dHomeAz)/2));
+            fflush(Logfile);
+#endif
+            m_bHomed = false;
+            bComplete = false;
+            enableBridge();
+            gotoAzimuth(dDomeAz-((dDomeAz-m_dHomeAz)/2));
+            m_goto_find = false; // 1 goto only.
+            return SB_OK;
+        }
+        isGoToComplete(bGotComplete);
+        if(!bGotComplete) {
+            m_bHomed = false;
+            bComplete = false;
+            return SB_OK;
+        }
         m_bHomed = true;
         bComplete = true;
+        m_goto_find = true;
+
         // syncDome(m_dHomeAz, m_dCurrentElPosition);
         m_nHomingTries = 0;
         enableBridge(); // let's see if this helps.
@@ -1239,8 +1340,8 @@ int CAMCDrive::abortCurrentCommand()
     uint16_t nCRC;
     unsigned char cmdBuf[SERIAL_BUFFER_SIZE];
     unsigned char szResp[SERIAL_BUFFER_SIZE];
-    uint16_t data[HOME_L];
-    uint16_t regValue;
+    uint16_t data[STOP_L];
+    uint32_t regValue;
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
@@ -1253,39 +1354,8 @@ int CAMCDrive::abortCurrentCommand()
     fflush(Logfile);
 #endif
 
-    // read register
-    cmdBuf[0] = SOF;
-    cmdBuf[1] = DA;
-    cmdBuf[2] = CB_READ;
-    cmdBuf[3] = STOP_I;
-    cmdBuf[4] = STOP_O;
-    cmdBuf[5] = STOP_L;
-    nCRC = crc_xmodem(cmdBuf, 6);
-    cmdBuf[6] = (unsigned char) ((nCRC>> 8) & 0xff);
-    cmdBuf[7] = (unsigned char) (nCRC & 0xff);
-#ifdef LOG_DEBUG
-    unsigned char cHexBuf[LOG_BUFFER_SIZE];
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    hexdump(cmdBuf, cHexBuf, 8+STOP_L*2 + 2 , LOG_BUFFER_SIZE);
-    fprintf(Logfile, "[%s] CAMCDrive::abortCurrentCommand sending to read register : %s\n", timestamp, cHexBuf);
-    fflush(Logfile);
-#endif
-
-    nErr = domeCommand(cmdBuf, 8, szResp, SERIAL_BUFFER_SIZE);
-    memcpy(&regValue, szResp+8, 2);
-
-#ifdef LOG_DEBUG
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] CAMCDrive::goHome regValue : %04X\n", timestamp, regValue);
-    fflush(Logfile);
-#endif
-
     // set STOP bit
-    regValue |= STOP_D;
+    regValue = STOP_D;
 
     // write register
     cmdBuf[0] = SOF;
@@ -1300,6 +1370,7 @@ int CAMCDrive::abortCurrentCommand()
     cmdBuf[7] = (unsigned char) (nCRC & 0xff);
 
     data[0] = regValue;
+    
     memcpy(cmdBuf + 8, data, STOP_L*2);
 
     nCRC = crc_xmodem((const unsigned char *)data, STOP_L * 2);
@@ -1308,6 +1379,7 @@ int CAMCDrive::abortCurrentCommand()
     cmdBuf[8+(STOP_L*2)+1] = (unsigned char) (nCRC & 0xff);
 
 #ifdef LOG_DEBUG
+    unsigned char cHexBuf[LOG_BUFFER_SIZE];
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
@@ -1317,6 +1389,8 @@ int CAMCDrive::abortCurrentCommand()
 #endif
 
     nErr = domeCommand(cmdBuf, 8 + STOP_L*2 + 2, szResp, SERIAL_BUFFER_SIZE);
+
+    // disableBridge();
 
     timer.Reset();
     return nErr;
