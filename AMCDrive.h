@@ -117,6 +117,10 @@ extern "C"
 #define SYNC_L 0x01
 #define SYNC_D 0x0008
 
+#define SET_POSITION_I  0x39
+#define SET_POSITION_O  0x00
+#define SET_POSITION_L  0x02
+
 // Section 2.3.3 Monitor Commands
 // Drive status
 #define STATUS_I    0x02
@@ -250,7 +254,7 @@ protected:
     int             m_nHomingTries;
     int             m_nGotoTries;
     uint32_t        m_nCurrentTicks;
-    bool            m_goto_find;
+    bool            m_goto_find_home;
     
 #ifdef LOG_DEBUG
     // timestamp for logs
