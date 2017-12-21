@@ -35,6 +35,7 @@ CAMCDrive::CAMCDrive()
     m_goto_find_home = true;
 
     memset(m_szFirmwareVersion,0,SERIAL_BUFFER_SIZE);
+    memset(m_szProdInfo,0,SERIAL_BUFFER_SIZE);
     memset(m_szLogBuffer,0,LOG_BUFFER_SIZE);
     
 #ifdef LOG_DEBUG
@@ -90,10 +91,38 @@ int CAMCDrive::Connect(const char *pszPort)
     if (m_bDebugLog) {
         snprintf(m_szLogBuffer,LOG_BUFFER_SIZE,"[CAMCDrive::Connect] Connected.");
         m_pLogger->out(m_szLogBuffer);
-
-        snprintf(m_szLogBuffer,LOG_BUFFER_SIZE,"[CAMCDrive::Connect] Getting Firmware.");
-        m_pLogger->out(m_szLogBuffer);
     }
+
+#ifdef LOG_DEBUG
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] CAMCDrive::Connect gain write access\n", timestamp);
+    fflush(Logfile);
+#endif
+
+    nErr = gainWriteAccess();
+    nErr = abortCurrentCommand();
+    nErr = enableBridge();
+
+#ifdef LOG_DEBUG
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] CAMCDrive::Connect Getting Product Info\n", timestamp);
+    fflush(Logfile);
+#endif
+
+    nErr = getProductInformation(m_szProdInfo, SERIAL_BUFFER_SIZE);
+
+#ifdef LOG_DEBUG
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] CAMCDrive::Connect m_szProdInfo :  %s\n", timestamp, m_szProdInfo);
+    fflush(Logfile);
+#endif
+
 
 #ifdef LOG_DEBUG
     ltime = time(NULL);
@@ -103,18 +132,15 @@ int CAMCDrive::Connect(const char *pszPort)
     fflush(Logfile);
 #endif
 
+    nErr = getFirmwareVersion(m_szFirmwareVersion, SERIAL_BUFFER_SIZE);
 
 #ifdef LOG_DEBUG
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] CAMCDrive::Connect gain write access %s\n", timestamp, m_szFirmwareVersion);
+    fprintf(Logfile, "[%s] CAMCDrive::Connect m_szFirmwareVersion :  %s\n", timestamp, m_szFirmwareVersion);
     fflush(Logfile);
 #endif
-
-    nErr = gainWriteAccess();
-    nErr = abortCurrentCommand();
-    nErr = enableBridge();
 
     return SB_OK;
 }
@@ -969,6 +995,69 @@ int CAMCDrive::getFirmwareVersion(char *szVersion, int nStrMaxLen)
     return nErr;
 }
 
+int CAMCDrive::getFirmwareVersionString(char *szVersion, int nStrMaxLen)
+{
+    int nErr = SB_OK;
+    strncpy(szVersion, m_szFirmwareVersion, nStrMaxLen);
+    return nErr;
+}
+
+int CAMCDrive::getProductInformation(char *szProdInfo, int nStrMaxLen)
+{
+    int nErr = 0;
+    uint16_t nCRC;
+    unsigned char cmdBuf[SERIAL_BUFFER_SIZE];
+    unsigned char szResp[SERIAL_BUFFER_SIZE];
+    size_t nMaxSize;
+
+    cmdBuf[0] = SOF;
+    cmdBuf[1] = DA;
+    cmdBuf[2] = CB_READ | PI_S;
+    cmdBuf[3] = PI_I;
+    cmdBuf[4] = PI_O;
+    cmdBuf[5] = PI_L;
+
+    nCRC = crc_xmodem(cmdBuf, 6);
+    cmdBuf[6] = (unsigned char) ((nCRC>> 8) & 0xff);
+    cmdBuf[7] = (unsigned char) (nCRC & 0xff);
+
+#ifdef LOG_DEBUG
+    unsigned char cHexBuf[LOG_BUFFER_SIZE];
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    hexdump(cmdBuf, cHexBuf, 8, LOG_BUFFER_SIZE);
+    fprintf(Logfile, "[%s] CAMCDrive::getProductInformation sending : %s\n", timestamp, cHexBuf);
+    fflush(Logfile);
+#endif
+    // send command and get response.
+    nErr = domeCommand(cmdBuf, 8, szResp, SERIAL_BUFFER_SIZE);
+    if(nErr)
+        return nErr;
+
+#ifdef LOG_DEBUG
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    hexdump(szResp, cHexBuf, PI_L, LOG_BUFFER_SIZE);
+    fprintf(Logfile, "[%s] CAMCDrive::getProductInformation got :%s\n", timestamp, cHexBuf);
+    fflush(Logfile);
+#endif
+
+    // convert response
+    memset(szProdInfo, 0, nStrMaxLen);
+    strncpy(szProdInfo, (const char *) szResp+8+2, PI_L);
+
+    return nErr;
+}
+
+int CAMCDrive::getProductInformationString(char *szProdInfo, int nStrMaxLen)
+{
+    int nErr = SB_OK;
+    strncpy(szProdInfo, m_szProdInfo, nStrMaxLen);
+    return nErr;
+}
+
 int CAMCDrive::goHome()
 {
     int nErr = 0;
@@ -1040,6 +1129,7 @@ int CAMCDrive::goHome()
     return nErr;
 }
 
+
 int CAMCDrive::calibrate()
 {
     int nErr = 0;
@@ -1063,13 +1153,13 @@ int CAMCDrive::isGoToComplete(bool &bComplete)
 
     if(isDomeMoving()) {
         bComplete = false;
-        getDomeAz(dDomeAz);
+        // getDomeAz(dDomeAz);
         return nErr;
     }
 
     if(!isPositionReached()) {
         bComplete = false;
-        getDomeAz(dDomeAz);
+        // getDomeAz(dDomeAz);
         return nErr;
     }
 
@@ -1183,7 +1273,7 @@ int CAMCDrive::isParkComplete(bool &bComplete)
         return NOT_CONNECTED;
 
     if(isDomeMoving()) {
-        getDomeAz(dDomeAz);
+        // getDomeAz(dDomeAz);
         bComplete = false;
         return nErr;
     }
@@ -1253,7 +1343,7 @@ int CAMCDrive::isFindHomeComplete(bool &bComplete)
     }
 
     if(isDomeAtHome()){
-        getDomeAz(dDomeAz);
+        // getDomeAz(dDomeAz);
 
 #ifdef LOG_DEBUG
         ltime = time(NULL);
@@ -1283,7 +1373,6 @@ int CAMCDrive::isFindHomeComplete(bool &bComplete)
         bComplete = true;
         m_goto_find_home = true;
 
-        // syncDome(m_dHomeAz, m_dCurrentElPosition);
         m_nHomingTries = 0;
         enableBridge(); // let's see if this helps.
 #ifdef LOG_DEBUG

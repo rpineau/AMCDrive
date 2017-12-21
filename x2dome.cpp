@@ -279,24 +279,42 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
 
 void X2Dome::deviceInfoNameShort(BasicStringInterface& str) const					
 {
-	str = "AMCDrive";
+	str = "A-M-C Drive";
+    if(m_bLinked) {
+        X2Dome* pMe = (X2Dome*)this;
+        char cProdInfo[SERIAL_BUFFER_SIZE];
+        pMe->m_AMCDrive.getProductInformationString(cProdInfo, SERIAL_BUFFER_SIZE);
+        str = cProdInfo;
+    }
 }
 
 void X2Dome::deviceInfoNameLong(BasicStringInterface& str) const					
 {
-    str = "AMCDrive";
+    str = "A-M-C Drive";
+    if(m_bLinked) {
+        X2Dome* pMe = (X2Dome*)this;
+        char cProdInfo[SERIAL_BUFFER_SIZE];
+        pMe->m_AMCDrive.getProductInformationString(cProdInfo, SERIAL_BUFFER_SIZE);
+        str = cProdInfo;
+    }
 }
 
 void X2Dome::deviceInfoDetailedDescription(BasicStringInterface& str) const		
 {
-    str = "AMCDrive Dome Rotation Kit";
+    str = "A-M-C Drive";
+    if(m_bLinked) {
+        X2Dome* pMe = (X2Dome*)this;
+        char cProdInfo[SERIAL_BUFFER_SIZE];
+        pMe->m_AMCDrive.getProductInformationString(cProdInfo, SERIAL_BUFFER_SIZE);
+        str = cProdInfo;
+    }
 }
 
  void X2Dome::deviceInfoFirmwareVersion(BasicStringInterface& str)					
 {
     if(m_bLinked) {
         char cFirmware[SERIAL_BUFFER_SIZE];
-        m_AMCDrive.getFirmwareVersion(cFirmware, SERIAL_BUFFER_SIZE);
+        m_AMCDrive.getFirmwareVersionString(cFirmware, SERIAL_BUFFER_SIZE);
         str = cFirmware;
     }
     else
@@ -305,7 +323,13 @@ void X2Dome::deviceInfoDetailedDescription(BasicStringInterface& str) const
 
 void X2Dome::deviceInfoModel(BasicStringInterface& str)
 {
-    str = "AMCDrive Dome Rotation Kit";
+    str = "A-M-C Drive";
+    if(m_bLinked) {
+        X2Dome* pMe = (X2Dome*)this;
+        char cProdInfo[SERIAL_BUFFER_SIZE];
+        pMe->m_AMCDrive.getProductInformationString(cProdInfo, SERIAL_BUFFER_SIZE);
+        str = cProdInfo;
+    }
 }
 
 //
@@ -315,7 +339,7 @@ void X2Dome::deviceInfoModel(BasicStringInterface& str)
 
  void	X2Dome::driverInfoDetailedInfo(BasicStringInterface& str) const	
 {
-    str = "AMCDrive Dome Rotation Kit X2 plugin by Rodolphe Pineau";
+    str = "A-M-C Drive X2 plugin by Rodolphe Pineau";
 }
 
 double	X2Dome::driverInfoVersion(void) const

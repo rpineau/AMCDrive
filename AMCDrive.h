@@ -91,6 +91,12 @@ extern "C"
 #define POS_O  0x00
 #define POS_L  0x02
 
+// get prod info
+#define PI_I  0x8c
+#define PI_O  0x00
+#define PI_L  0x31
+#define PI_S  0x08
+
 // get firmware
 #define FW_I  0x8d
 #define FW_O  0x00
@@ -113,7 +119,7 @@ extern "C"
 #define STOP_D 0x0040
 // Sync
 #define SYNC_I 0x01
-#define SYNC_O 0x01
+#define SYNC_O 0x00
 #define SYNC_L 0x01
 #define SYNC_D 0x0008
 
@@ -163,9 +169,11 @@ public:
     int gotoAzimuth(double dNewAz);
     int openShutter();
     int closeShutter();
-    int getFirmwareVersion(char *szVersion, int nStrMaxLen);
     int goHome();
     int calibrate();
+
+    int getFirmwareVersionString(char *szVersion, int nStrMaxLen);
+    int getProductInformationString(char *szProdInfo, int nStrMaxLen);
 
     // command complete functions
     int isGoToComplete(bool &bComplete);
@@ -220,6 +228,8 @@ protected:
     int             parseFields(char *pszResp, std::vector<std::string> &svFields, char cSeparator);
     bool            isPositionReached();
     uint16_t        getStatus();
+    int             getFirmwareVersion(char *szVersion, int nStrMaxLen);
+    int             getProductInformation(char *szProdInfo, int nStrMaxLen);
 
     void            AzToTicks(double pdAz, int &ticks);
     void            TicksToAz(int ticks, double &pdAz);
@@ -248,6 +258,7 @@ protected:
     float           m_fVersion;
 
     char            m_szFirmwareVersion[SERIAL_BUFFER_SIZE];
+    char            m_szProdInfo[SERIAL_BUFFER_SIZE];
     int             m_nShutterState;
     bool            m_bShutterOnly;
     char            m_szLogBuffer[LOG_BUFFER_SIZE];
