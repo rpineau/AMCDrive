@@ -92,15 +92,14 @@ extern "C"
 #define POS_L  0x02
 
 // get prod info
-#define PI_I  0x8c
+#define PI_I  0x8C
 #define PI_O  0x00
 #define PI_L  0x31
-#define PI_S  0x08
 
 // get firmware
-#define FW_I  0x8d
+#define FW_I  0x0B
 #define FW_O  0x00
-#define FW_L  0x00
+#define FW_L  0x80
 
 // clear error
 #define CLEAR_ERR 0x1000

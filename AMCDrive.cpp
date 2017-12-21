@@ -119,7 +119,7 @@ int CAMCDrive::Connect(const char *pszPort)
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] CAMCDrive::Connect m_szProdInfo :  %s\n", timestamp, m_szProdInfo);
+    fprintf(Logfile, "[%s] CAMCDrive::Connect m_szProdInfo : %s\n", timestamp, m_szProdInfo);
     fflush(Logfile);
 #endif
 
@@ -959,39 +959,19 @@ int CAMCDrive::getFirmwareVersion(char *szVersion, int nStrMaxLen)
     cmdBuf[6] = (unsigned char) ((nCRC>> 8) & 0xff);
     cmdBuf[7] = (unsigned char) (nCRC & 0xff);
 
-#ifdef LOG_DEBUG
-    unsigned char cHexBuf[LOG_BUFFER_SIZE];
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    hexdump(cmdBuf, cHexBuf, 8, LOG_BUFFER_SIZE);
-    fprintf(Logfile, "[%s] CAMCDrive::getFirmwareVersion sending : %s\n", timestamp, cHexBuf);
-    fflush(Logfile);
-#endif
     // send command and get response.
     nErr = domeCommand(cmdBuf, 8, szResp, SERIAL_BUFFER_SIZE);
     if(nErr)
         return nErr;
 
-#ifdef LOG_DEBUG
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    hexdump(cmdBuf, cHexBuf, 8, LOG_BUFFER_SIZE);
-    fprintf(Logfile, "[%s] CAMCDrive::getFirmwareVersion got :%s\n", timestamp, szResp);
-    fflush(Logfile);
-#endif
-
-    // convert response, firmware is a 32 byte max resonse
+    // convert response
     memset(szVersion, 0, nStrMaxLen);
-    if(nStrMaxLen< 32)
-        nMaxSize = nStrMaxLen;
+    if(nStrMaxLen > FW_L)
+        nMaxSize = FW_L;
     else
-        nMaxSize = 32;
+        nMaxSize = nStrMaxLen;
 
-    strncpy(szVersion, (const char *)szResp, nMaxSize);
-
-
+    strncpy(szVersion, (const char *) szResp+8+32, nMaxSize); // firmware name seems to be at offset 32
     return nErr;
 }
 
@@ -1012,7 +992,8 @@ int CAMCDrive::getProductInformation(char *szProdInfo, int nStrMaxLen)
 
     cmdBuf[0] = SOF;
     cmdBuf[1] = DA;
-    cmdBuf[2] = CB_READ | PI_S;
+    // cmdBuf[2] = CB_READ | PI_S;
+    cmdBuf[2] = CB_READ;
     cmdBuf[3] = PI_I;
     cmdBuf[4] = PI_O;
     cmdBuf[5] = PI_L;
@@ -1021,32 +1002,19 @@ int CAMCDrive::getProductInformation(char *szProdInfo, int nStrMaxLen)
     cmdBuf[6] = (unsigned char) ((nCRC>> 8) & 0xff);
     cmdBuf[7] = (unsigned char) (nCRC & 0xff);
 
-#ifdef LOG_DEBUG
-    unsigned char cHexBuf[LOG_BUFFER_SIZE];
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    hexdump(cmdBuf, cHexBuf, 8, LOG_BUFFER_SIZE);
-    fprintf(Logfile, "[%s] CAMCDrive::getProductInformation sending : %s\n", timestamp, cHexBuf);
-    fflush(Logfile);
-#endif
     // send command and get response.
     nErr = domeCommand(cmdBuf, 8, szResp, SERIAL_BUFFER_SIZE);
     if(nErr)
         return nErr;
 
-#ifdef LOG_DEBUG
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    hexdump(szResp, cHexBuf, PI_L, LOG_BUFFER_SIZE);
-    fprintf(Logfile, "[%s] CAMCDrive::getProductInformation got :%s\n", timestamp, cHexBuf);
-    fflush(Logfile);
-#endif
-
     // convert response
     memset(szProdInfo, 0, nStrMaxLen);
-    strncpy(szProdInfo, (const char *) szResp+8+2, PI_L);
+    if(nStrMaxLen > PI_L)
+        nMaxSize = PI_L;
+    else
+        nMaxSize = nStrMaxLen;
+
+    strncpy(szProdInfo, (const char *) szResp+8+2, nMaxSize); // data from 2 to 33 = Control Board Name
 
     return nErr;
 }
@@ -1343,7 +1311,7 @@ int CAMCDrive::isFindHomeComplete(bool &bComplete)
     }
 
     if(isDomeAtHome()){
-        // getDomeAz(dDomeAz);
+        getDomeAz(dDomeAz);
 
 #ifdef LOG_DEBUG
         ltime = time(NULL);
