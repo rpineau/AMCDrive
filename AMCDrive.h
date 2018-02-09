@@ -101,9 +101,6 @@ extern "C"
 #define FW_O  0x00
 #define FW_L  0x80
 
-// clear error
-#define CLEAR_ERR 0x1000
-
 // Section 2.3.1 page 142 01h: Control Parameters
 // Home
 #define HOME_I 0x01
@@ -116,6 +113,13 @@ extern "C"
 #define STOP_O 0x00
 #define STOP_L 0x01
 #define STOP_D 0x0040
+
+// reset events
+#define RST_EVT_I 0x01
+#define RST_EVT_O 0x00
+#define RST_EVT_L 0x01
+#define RST_EVT_D  0x1000
+
 // Sync
 #define SYNC_I 0x01
 #define SYNC_O 0x00
@@ -129,6 +133,9 @@ extern "C"
 // Section 2.3.3 Monitor Commands
 // Drive status
 #define STATUS_I    0x02
+#define DRIVE_BRIDGE_STATUS_O   0x00
+#define DRIVE_PROT_STATUS_O     0x01
+#define SYS_PROT_STATUS_O       0x02
 #define STATUS_1_O  0x03
 #define STATUS_2_O  0x04
 #define STATUS_3_O  0x05
@@ -226,7 +233,7 @@ protected:
     int             readResponse(unsigned char *respBuffer, int bufferLen);
     int             parseFields(char *pszResp, std::vector<std::string> &svFields, char cSeparator);
     bool            isPositionReached();
-    uint16_t        getStatus();
+    uint16_t        getStatus(unsigned char cStatus);
     int             getFirmwareVersion(char *szVersion, int nStrMaxLen);
     int             getProductInformation(char *szProdInfo, int nStrMaxLen);
 
@@ -234,7 +241,8 @@ protected:
     void            TicksToAz(int ticks, double &pdAz);
     int             gotoTicksPosition(int ticks);
     int             syncTicksPosition(int ticks);
-
+    int             resetEvents();
+    
     SerXInterface   *m_pSerx;
     SleeperInterface *m_pSleeper;
     LoggerInterface *m_pLogger;
@@ -265,15 +273,20 @@ protected:
     int             m_nGotoTries;
     uint32_t        m_nCurrentTicks;
     bool            m_goto_find_home;
-    
+    CStopWatch      timer;
+
+    unsigned char   m_cSeqNumber;
+
 #ifdef LOG_DEBUG
+    std::string m_sLogfilePath;
     // timestamp for logs
     char *timestamp;
     time_t ltime;
     FILE *Logfile;	  // LogFile
-#endif
+
+    void            getAllStatusReg();
     void            hexdump(const unsigned char* pszInputBuffer, unsigned char *pszOutputBuffer, int nInputBufferSize, int nOutpuBufferSize);
-    CStopWatch      timer;
+#endif
 };
 
 #endif

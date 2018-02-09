@@ -38,8 +38,6 @@ X2Dome::X2Dome(const char* pszSelection,
         m_bHasShutterControl = m_pIniUtil->readInt(PARENT_KEY, CHILD_KEY_SHUTTER_CONTROL, false);
     }
 
-    printf("NbTicksPerRev : %d\n", m_AMCDrive.getNbTicksPerRev());
-
 }
 
 
@@ -318,7 +316,7 @@ void X2Dome::deviceInfoDetailedDescription(BasicStringInterface& str) const
         str = cFirmware;
     }
     else
-        str = "N/A";
+        str = "";
 }
 
 void X2Dome::deviceInfoModel(BasicStringInterface& str)
@@ -354,10 +352,10 @@ double	X2Dome::driverInfoVersion(void) const
 
 int X2Dome::dapiGetAzEl(double* pdAz, double* pdEl)
 {
-    X2MutexLocker ml(GetMutex());
-
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     *pdAz = m_AMCDrive.getCurrentAz();
     *pdEl = m_AMCDrive.getCurrentEl();
@@ -368,10 +366,11 @@ int X2Dome::dapiGotoAzEl(double dAz, double dEl)
 {
     int nErr;
 
-    X2MutexLocker ml(GetMutex());
-
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
+
 
     nErr = m_AMCDrive.gotoAzimuth(dAz);
     if(nErr)
@@ -384,10 +383,10 @@ int X2Dome::dapiGotoAzEl(double dAz, double dEl)
 int X2Dome::dapiAbort(void)
 {
 
-    X2MutexLocker ml(GetMutex());
-
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     m_AMCDrive.abortCurrentCommand();
 
@@ -397,10 +396,12 @@ int X2Dome::dapiAbort(void)
 int X2Dome::dapiOpen(void)
 {
     int nErr;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
+
 
     if(!m_bHasShutterControl)
         return SB_OK;
@@ -415,10 +416,12 @@ int X2Dome::dapiOpen(void)
 int X2Dome::dapiClose(void)
 {
     int nErr;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
+
 
     if(!m_bHasShutterControl)
         return SB_OK;
@@ -433,10 +436,12 @@ int X2Dome::dapiClose(void)
 int X2Dome::dapiPark(void)
 {
     int nErr;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
+
     /*
     if(m_bHasShutterControl)
     {
@@ -456,10 +461,12 @@ int X2Dome::dapiPark(void)
 int X2Dome::dapiUnpark(void)
 {
     int nErr;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
+
     /*
     if(m_bHasShutterControl)
     {
@@ -479,10 +486,11 @@ int X2Dome::dapiUnpark(void)
 int X2Dome::dapiFindHome(void)
 {
     int nErr;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     nErr = m_AMCDrive.goHome();
     if(nErr)
@@ -494,10 +502,11 @@ int X2Dome::dapiFindHome(void)
 int X2Dome::dapiIsGotoComplete(bool* pbComplete)
 {
     int nErr;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     nErr = m_AMCDrive.isGoToComplete(*pbComplete);
     if(nErr)
@@ -508,13 +517,13 @@ int X2Dome::dapiIsGotoComplete(bool* pbComplete)
 int X2Dome::dapiIsOpenComplete(bool* pbComplete)
 {
     int nErr;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
-    
-    if(!m_bHasShutterControl)
-    {
+
+    X2MutexLocker ml(GetMutex());
+
+    if(!m_bHasShutterControl) {
         *pbComplete = true;
         return SB_OK;
     }
@@ -529,13 +538,13 @@ int X2Dome::dapiIsOpenComplete(bool* pbComplete)
 int	X2Dome::dapiIsCloseComplete(bool* pbComplete)
 {
     int nErr;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
 
-    if(!m_bHasShutterControl)
-    {
+    X2MutexLocker ml(GetMutex());
+
+    if(!m_bHasShutterControl) {
         *pbComplete = true;
         return SB_OK;
     }
@@ -550,10 +559,11 @@ int	X2Dome::dapiIsCloseComplete(bool* pbComplete)
 int X2Dome::dapiIsParkComplete(bool* pbComplete)
 {
     int nErr;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     nErr = m_AMCDrive.isParkComplete(*pbComplete);
     if(nErr)
@@ -565,10 +575,11 @@ int X2Dome::dapiIsParkComplete(bool* pbComplete)
 int X2Dome::dapiIsUnparkComplete(bool* pbComplete)
 {
     int nErr;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     nErr = m_AMCDrive.isUnparkComplete(*pbComplete);
     if(nErr)
@@ -580,10 +591,11 @@ int X2Dome::dapiIsUnparkComplete(bool* pbComplete)
 int X2Dome::dapiIsFindHomeComplete(bool* pbComplete)
 {
     int nErr;
-    X2MutexLocker ml(GetMutex());
 
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     nErr = m_AMCDrive.isFindHomeComplete(*pbComplete);
     if(nErr)
@@ -596,10 +608,10 @@ int X2Dome::dapiSync(double dAz, double dEl)
 {
     int nErr;
 
-    X2MutexLocker ml(GetMutex());
-
     if(!m_bLinked)
         return ERR_NOLINK;
+
+    X2MutexLocker ml(GetMutex());
 
     nErr = m_AMCDrive.syncDome(dAz, dEl);
     if(nErr)
